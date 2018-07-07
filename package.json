@@ -38,7 +38,7 @@
     "lint:fix": "eslint . --fix",
     "lint": "eslint .",
     "mkdirp": "mkdirp",
-    "plugin:def": "node bin/generate-plugin-definitions-source.js",
+    "plugin:def": "echo 'a'",
     "prebuild:dev:app": "env-cmd config/env.dev.js npm run plugin:def",
     "prebuild:prod": "npm run plugin:def",
     "prestart": "npm run build:prod",
