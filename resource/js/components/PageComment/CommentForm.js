@@ -2,12 +2,17 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import ReactUtils from '../ReactUtils';
 
-import CommentPreview from '../PageComment/CommentPreview';
-
 import Button from 'react-bootstrap/es/Button';
 import Tab from 'react-bootstrap/es/Tab';
 import Tabs from 'react-bootstrap/es/Tabs';
 import UserPicture from '../User/UserPicture';
+import * as toastr from 'toastr';
+
+import GrowiRenderer from '../../util/GrowiRenderer';
+
+import Editor from '../PageEditor/Editor';
+import CommentPreview from '../PageComment/CommentPreview';
+import SlackNotification from '../SlackNotification';
 
 /**
  *
@@ -23,27 +28,45 @@ export default class CommentForm extends React.Component {
   constructor(props) {
     super(props);
 
+    const config = this.props.crowi.getConfig();
+    const isUploadable = config.upload.image || config.upload.file;
+    const isUploadableFile = config.upload.file;
+
     this.state = {
       comment: '',
       isMarkdown: true,
       html: '',
       key: 1,
+      isUploadable,
+      isUploadableFile,
+      errorMessage: undefined,
+      hasSlackConfig: config.hasSlackConfig,
+      isSlackEnabled: false,
+      slackChannels: this.props.slackChannels,
     };
 
+    this.growiRenderer = new GrowiRenderer(this.props.crowi, this.props.crowiOriginRenderer, {mode: 'comment'});
+
     this.updateState = this.updateState.bind(this);
+    this.updateStateCheckbox = this.updateStateCheckbox.bind(this);
     this.postComment = this.postComment.bind(this);
     this.renderHtml = this.renderHtml.bind(this);
     this.handleSelect = this.handleSelect.bind(this);
+    this.apiErrorHandler = this.apiErrorHandler.bind(this);
+    this.onUpload = this.onUpload.bind(this);
+    this.onChannelChange = this.onChannelChange.bind(this);
+    this.onSlackOnChange = this.onSlackOnChange.bind(this);
   }
 
-  updateState(event) {
-    const target = event.target;
-    const value = target.type === 'checkbox' ? target.checked : target.value;
-    const name = target.name;
+  updateState(value) {
+    this.setState({comment: value});
+  }
 
-    this.setState({
-      [name]: value
-    });
+  updateStateCheckbox(event) {
+    const value = event.target.checked;
+    this.setState({isMarkdown: value});
+    // changeMode
+    this.refs.editor.setGfmMode(value);
   }
 
   handleSelect(key) {
@@ -51,11 +74,22 @@ export default class CommentForm extends React.Component {
     this.renderHtml(this.state.comment);
   }
 
+  onSlackOnChange(value) {
+    this.setState({isSlackEnabled: value});
+  }
+
+  onChannelChange(value) {
+    this.setState({slackChannels: value});
+  }
+
   /**
    * Load data of comments and rerender <PageComments />
    */
   postComment(event) {
-    event.preventDefault();
+    if (event != null) {
+      event.preventDefault();
+    }
+
     this.props.crowi.apiPost('/comments.add', {
       commentForm: {
         comment: this.state.comment,
@@ -63,19 +97,31 @@ export default class CommentForm extends React.Component {
         page_id: this.props.pageId,
         revision_id: this.props.revisionId,
         is_markdown: this.state.isMarkdown,
+      },
+      slackNotificationForm: {
+        isSlackEnabled: this.state.isSlackEnabled,
+        slackChannels: this.state.slackChannels,
       }
     })
-      .then((res) => {
-        if (this.props.onPostComplete != null) {
-          this.props.onPostComplete(res.comment);
-        }
-        this.setState({
-          comment: '',
-          isMarkdown: true,
-          html: '',
-          key: 1,
-        });
+    .then((res) => {
+      if (this.props.onPostComplete != null) {
+        this.props.onPostComplete(res.comment);
+      }
+      this.setState({
+        comment: '',
+        isMarkdown: true,
+        html: '',
+        key: 1,
+        errorMessage: undefined,
+        isSlackEnabled: false,
       });
+      // reset value
+      this.refs.editor.setValue('');
+    })
+    .catch(err => {
+      const errorMessage = err.message || 'An unknown error occured when posting comment';
+      this.setState({ errorMessage });
+    });
   }
 
   getCommentHtml() {
@@ -87,26 +133,26 @@ export default class CommentForm extends React.Component {
   }
 
   renderHtml(markdown) {
-    var context = {
+    const context = {
       markdown,
       dom: this.previewElement,
     };
 
-    const crowiRenderer = this.props.crowiRenderer;
+    const growiRenderer = this.growiRenderer;
     const interceptorManager = this.props.crowi.interceptorManager;
     interceptorManager.process('preRenderCommnetPreview', context)
       .then(() => interceptorManager.process('prePreProcess', context))
       .then(() => {
-        context.markdown = crowiRenderer.preProcess(context.markdown);
+        context.markdown = growiRenderer.preProcess(context.markdown);
       })
       .then(() => interceptorManager.process('postPreProcess', context))
       .then(() => {
-        var parsedHTML = crowiRenderer.process(context.markdown);
+        const parsedHTML = growiRenderer.process(context.markdown);
         context['parsedHTML'] = parsedHTML;
       })
       .then(() => interceptorManager.process('prePostProcess', context))
       .then(() => {
-        context.parsedHTML = crowiRenderer.postProcess(context.parsedHTML, context.dom);
+        context.parsedHTML = growiRenderer.postProcess(context.parsedHTML, context.dom);
       })
       .then(() => interceptorManager.process('postPostProcess', context))
       .then(() => interceptorManager.process('preRenderCommentPreviewHtml', context))
@@ -121,6 +167,52 @@ export default class CommentForm extends React.Component {
     return {__html: html};
   }
 
+  onUpload(file) {
+    const endpoint = '/attachments.add';
+
+    // create a FromData instance
+    const formData = new FormData();
+    formData.append('_csrf', this.props.crowi.csrfToken);
+    formData.append('file', file);
+    formData.append('path', this.props.pagePath);
+    formData.append('page_id', this.props.pageId || 0);
+
+    // post
+    this.props.crowi.apiPost(endpoint, formData)
+      .then((res) => {
+        const url = res.url;
+        const attachment = res.attachment;
+        const fileName = attachment.originalName;
+
+        let insertText = `[${fileName}](${url})`;
+        // when image
+        if (attachment.fileFormat.startsWith('image/')) {
+          // modify to "![fileName](url)" syntax
+          insertText = '!' + insertText;
+        }
+        this.refs.editor.insertText(insertText);
+      })
+      .catch(this.apiErrorHandler)
+      // finally
+      .then(() => {
+        this.refs.editor.terminateUploadingState();
+      });
+  }
+
+  apiErrorHandler(error) {
+    toastr.error(error.message, 'Error occured', {
+      closeButton: true,
+      progressBar: true,
+      newestOnTop: false,
+      showDuration: '100',
+      hideDuration: '100',
+      timeOut: '3000',
+    });
+  }
+
+  renderControls() {
+
+  }
 
   render() {
     const crowi = this.props.crowi;
@@ -129,6 +221,14 @@ export default class CommentForm extends React.Component {
     const creatorsPage = `/user/${username}`;
     const comment = this.state.comment;
     const commentPreview = this.state.isMarkdown ? this.getCommentHtml(): ReactUtils.nl2br(comment);
+    const emojiStrategy = this.props.crowi.getEmojiStrategy();
+
+    const errorMessage = <span className="text-danger text-right mr-2">{this.state.errorMessage}</span>;
+    const submitButton = (
+      <Button type="submit"bsStyle="primary" className="fcbtn btn btn-sm btn-primary btn-outline btn-rounded btn-1b">
+        Comment
+      </Button>
+    );
 
     return (
       <div>
@@ -144,8 +244,19 @@ export default class CommentForm extends React.Component {
                 <div className="comment-write">
                   <Tabs activeKey={this.state.key} id="comment-form-tabs" onSelect={this.handleSelect} animation={false}>
                     <Tab eventKey={1} title="Write">
-                      <textarea className="comment-form-comment form-control" id="comment-form-comment" name="comment" required placeholder="Write comments here..." value={this.state.comment} onChange={this.updateState} >
-                      </textarea>
+                      <Editor ref="editor"
+                        value={this.state.comment}
+                        isGfmMode={this.state.isMarkdown}
+                        editorOptions={this.props.editorOptions}
+                        lineNumbers={false}
+                        isMobile={this.props.crowi.isMobile}
+                        isUploadable={this.state.isUploadable}
+                        isUploadableFile={this.state.isUploadableFile}
+                        emojiStrategy={emojiStrategy}
+                        onChange={this.updateState}
+                        onUpload={this.onUpload}
+                        onCtrlEnter={this.postComment}
+                      />
                     </Tab>
                     { this.state.isMarkdown == true &&
                     <Tab eventKey={2} title="Preview">
@@ -157,19 +268,33 @@ export default class CommentForm extends React.Component {
                   </Tabs>
                 </div>
                 <div className="comment-submit">
-                  <div className="pull-left">
-                  { this.state.key == 1 &&
-                    <label>
-                      <input type="checkbox" id="comment-form-is-markdown" name="isMarkdown" checked={this.state.isMarkdown} value="1" onChange={this.updateState} /> Markdown
-                    </label>
-                  }
+                  <div className="d-flex">
+                    { this.state.key == 1 &&
+                      <label style={{flex: 1}}>
+                        <input type="checkbox" id="comment-form-is-markdown" name="isMarkdown" checked={this.state.isMarkdown} value="1" onChange={this.updateStateCheckbox} /> Markdown
+                      </label>
+                    }
+                    <span className="hidden-xs">{ this.state.errorMessage && errorMessage }</span>
+                    { this.state.hasSlackConfig &&
+                      <div className="form-inline align-self-center mr-md-2">
+                        <SlackNotification
+                          crowi={this.props.crowi}
+                          pageId={this.props.pageId}
+                          pagePath={this.props.pagePath}
+                          onSlackOnChange={this.onSlackOnChange}
+                          onChannelChange={this.onChannelChange}
+                          isSlackEnabled={this.state.isSlackEnabled}
+                          slackChannels={this.state.slackChannels}
+                        />
+                      </div>
+                    }
+                    <div className="hidden-xs">{submitButton}</div>
                   </div>
-                  <div className="pull-right">
-                    <Button type="submit" value="Submit" bsStyle="primary" className="fcbtn btn btn-sm btn-primary btn-outline btn-rounded btn-1b">
-                        Comment
-                    </Button>
-                  </div>
-                  <div className="clearfix">
+                  <div className="visible-xs mt-2">
+                    <div className="d-flex justify-content-end">
+                      { this.state.errorMessage && errorMessage }
+                      <div>{submitButton}</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -183,8 +308,14 @@ export default class CommentForm extends React.Component {
 
 CommentForm.propTypes = {
   crowi: PropTypes.object.isRequired,
+  crowiOriginRenderer: PropTypes.object.isRequired,
   onPostComplete: PropTypes.func,
   pageId: PropTypes.string,
   revisionId: PropTypes.string,
-  crowiRenderer:  PropTypes.object.isRequired,
+  pagePath: PropTypes.string,
+  editorOptions: PropTypes.object,
+  slackChannels: PropTypes.string,
+};
+CommentForm.defaultProps = {
+  editorOptions: {},
 };

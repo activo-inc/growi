@@ -53,6 +53,20 @@ export default class Editor extends AbstractEditor {
   /**
    * @inheritDoc
    */
+  setValue(newValue) {
+    this.getEditorSubstance().setValue(newValue);
+  }
+
+  /**
+   * @inheritDoc
+   */
+  setGfmMode(bool) {
+    this.getEditorSubstance().setGfmMode(bool);
+  }
+
+  /**
+   * @inheritDoc
+   */
   setCaretLine(line) {
     this.getEditorSubstance().setCaretLine(line);
   }
@@ -171,22 +185,9 @@ export default class Editor extends AbstractEditor {
     return className;
   }
 
-  getOverlayStyle() {
-    return {
-      position: 'absolute',
-      zIndex: 4,  // forward than .CodeMirror-gutters
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0,
-    };
-  }
-
   renderDropzoneOverlay() {
-    const overlayStyle = this.getOverlayStyle();
-
     return (
-      <div style={overlayStyle} className="overlay">
+      <div className="overlay overlay-dropzone-active">
         {this.state.isUploading &&
           <span className="overlay-content">
             <div className="speeding-wheel d-inline-block"></div>
@@ -207,8 +208,8 @@ export default class Editor extends AbstractEditor {
 
     const isMobile = this.props.isMobile;
 
-    return <React.Fragment>
-      <div style={flexContainer}>
+    return (
+      <div style={flexContainer} className="editor-container">
         <Dropzone
             ref="dropzone"
             disableClick
@@ -250,14 +251,16 @@ export default class Editor extends AbstractEditor {
           onClick={() => {this.refs.dropzone.open()}}>
 
           <i className="icon-paper-clip" aria-hidden="true"></i>&nbsp;
-          Attach files by dragging &amp; dropping,&nbsp;
-          <span className="btn-link">selecting them</span>,&nbsp;
-          or pasting from the clipboard.
+          Attach files
+          <span className="desc-long">
+            &nbsp;by dragging &amp; dropping,&nbsp;
+            <span className="btn-link">selecting them</span>,&nbsp;
+            or pasting from the clipboard.
+          </span>
         </button>
 
       </div>
-
-    </React.Fragment>;
+    );
   }
 
 }

@@ -32,7 +32,7 @@
             <div class="d-flex create-page-input-container">
               <div class="create-page-input-row d-flex align-items-center">
                 {% if searchConfigured() %}
-                <div id="page-name-inputter"></div>
+                <div id="page-name-input"></div>
                 {% else %}
                 <input type="text" value="{{ parentPath(path) }}" class="page-name-input form-control " placeholder="{{ t('Input page name') }}" required />
                 {% endif %}
@@ -46,7 +46,7 @@
 
         <div id="template-form" class="row form-horizontal m-t-15">
           <fieldset class="col-xs-12">
-            <legend>{{ t('template.modal_label.Create template under', parentPath(path)) }}</legend>
+            <legend>{{ t('template.modal_label.Create template under', parentPath(path | preventXss)) }}</legend>
             <div class="d-flex create-page-input-container">
               <div class="create-page-input-row d-flex align-items-center">
                 <select id="template-type" class="form-control selectpicker" title="{{ t('template.option_label.select') }}">
@@ -57,46 +57,28 @@
               <div class="create-page-button-container">
                 <a id="link-to-template" href="{{ page.path || path }}" class="fcbtn btn btn-outline btn-rounded btn-primary btn-1b disabled">
                   <i class="icon-fw icon-doc"></i>
-                  <span id="create-template-button-link">{{ t('Create') }}/{{ t('Edit') }}</span>
+                  <span id="create-template-button-link">{{ t('Edit') }}</span>
                 </a>
               </div>
             </div>
           </fieldset>
         </div>
 
+        <script>
+          $('#template-type').on('change', function() {
+            // enable button
+            $('#link-to-template').removeClass('disabled');
+
+            // modify href
+            const value = $(this).val();
+            const pageName = (value === 'children') ? '_template' : '__template';
+            const link = '{{ page.path || path }}/' + pageName + '#edit-form';
+            $('#link-to-template').attr('href', link);
+          });
+        </script>
+
       </div><!-- /.modal-body -->
 
     </div><!-- /.modal-content -->
   </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
-<script>
-  let buttonTextChildren;
-  let buttonTextDecendants;
-  let pagePath = $("#link-to-template").attr("href");
-
-  if (pagePath.endsWith("/")) {
-      pagePath = pagePath.slice(0, -1);
-  };
-
-  $.get(`/_api/pages.templates?path=${pagePath}`)
-    .then(templateInfo => {
-      buttonTextChildren = templateInfo.childrenTemplateExists ? `{{ t('Edit') }}` : `{{ t('Create') }}`;
-      buttonTextDecendants = templateInfo.decendantsTemplateExists ? `{{ t('Edit') }}` : `{{ t('Create') }}`;
-    });
-
-  $("#template-type").on("change", () => {
-    // enable button
-    $('#link-to-template').removeClass("disabled");
-
-    if ($("#template-type").val() === "children") {
-      href = pagePath + "/_template#edit-form";
-      $("#link-to-template").attr("href", href);
-      $('#create-template-button-link').text(buttonTextChildren);
-    }
-    else if ($("#template-type").val() === "decentants") {
-      href = pagePath + "/__template#edit-form";
-      $("#link-to-template").attr("href", href);
-      $('#create-template-button-link').text(buttonTextDecendants);
-    };
-  });
-</script>

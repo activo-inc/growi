@@ -27,7 +27,9 @@ export default class SearchTypeahead extends React.Component {
 
     this.search = this.search.bind(this);
     this.onInputChange = this.onInputChange.bind(this);
+    this.onKeyDown = this.onKeyDown.bind(this);
     this.onChange = this.onChange.bind(this);
+    this.dispatchSubmit = this.dispatchSubmit.bind(this);
     this.getRestoreFormButton = this.getRestoreFormButton.bind(this);
     this.renderMenuItemChildren = this.renderMenuItemChildren.bind(this);
     this.restoreInitialData = this.restoreInitialData.bind(this);
@@ -91,6 +93,15 @@ export default class SearchTypeahead extends React.Component {
 
   onInputChange(text) {
     this.setState({input: text});
+    if (text === '') {
+      this.setState({pages: []});
+    }
+  }
+
+  onKeyDown(event) {
+    if (event.keyCode === 13) {
+      this.dispatchSubmit();
+    }
   }
 
   onChange(selected) {
@@ -102,11 +113,17 @@ export default class SearchTypeahead extends React.Component {
     }
   }
 
+  dispatchSubmit() {
+    if (this.props.onSubmit != null) {
+      this.props.onSubmit(this.state.keyword);
+    }
+  }
+
   renderMenuItemChildren(option, props, index) {
     const page = option;
     return (
       <span>
-      <UserPicture user={page.revision.author} size="sm" />
+      <UserPicture user={page.lastUpdateUser} size="sm" />
       <PagePath page={page} />
       <PageListMeta page={page} />
       </span>
@@ -151,16 +168,18 @@ export default class SearchTypeahead extends React.Component {
           inputProps={{name: 'q', autoComplete: 'off'}}
           isLoading={this.state.isLoading}
           labelKey="path"
-          minLength={2}
+          minLength={0}
           options={this.state.pages} // Search result (Some page names)
           emptyLabel={this.emptyLabel ? this.emptyLabel : emptyLabel}
           align='left'
           submitFormOnEnter={true}
           onSearch={this.search}
           onInputChange={this.onInputChange}
+          onKeyDown={this.onKeyDown}
           renderMenuItemChildren={this.renderMenuItemChildren}
           caseSensitive={false}
           defaultSelected={defaultSelected}
+          promptText={this.props.promptText}
         />
         {restoreFormButton}
       </div>
@@ -176,9 +195,11 @@ SearchTypeahead.propTypes = {
   onSearchSuccess: PropTypes.func,
   onSearchError:   PropTypes.func,
   onChange:        PropTypes.func,
+  onSubmit:        PropTypes.func,
   emptyLabel:      PropTypes.string,
   placeholder:     PropTypes.string,
   keywordOnInit:   PropTypes.string,
+  promptText:      PropTypes.object,
 };
 
 /**

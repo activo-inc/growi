@@ -20,6 +20,9 @@
         }
         .create-page-button-container {
           margin-left: 15px;
+          .btn {
+            min-width: 105px;
+          }
         }
 
         // change layout by screen size
@@ -48,7 +51,7 @@
         margin-left: 5px;
       }
 
-      #page-name-inputter {
+      #page-name-input {
         flex: 1;
         input {
           min-width: 300px; // Workaround to display placeholder.
