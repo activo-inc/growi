@@ -1,0 +1,26 @@
+{% if req.form.errors %}
+<div class="alert alert-danger">
+  <ul>
+  {% for error in req.form.errors %}
+    <li>{{ t(error) }}</li>
+  {% endfor %}
+
+  </ul>
+</div>
+{% endif %}
+
+<div class="page-editor-footer d-flex flex-row align-items-center justify-content-between">
+
+  <div>
+    <div id="page-editor-options-selector" class="hidden-xs"></div>
+  </div>
+
+  <div id="save-page-controls"
+    data-grant="{{ page.grant }}"
+    data-grant-group="{{ pageRelatedGroup._id.toString() }}"
+    data-grant-group-name="{{ pageRelatedGroup.name }}">
+  </div>
+
+</div>
+
+<div class="file-module hidden"></div>

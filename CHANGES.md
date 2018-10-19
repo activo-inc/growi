@@ -1,16 +1,101 @@
 CHANGES
 ========
 
-## 3.2.0-RC
+## 3.2.6-RC
 
-* Feature: Simultaneously edit by multiple people with HackMD integration
+* Feature: Import CSV/TSV/HTML table on Spreadsheet like GUI (Handsontable)
+* Feature: Add select alignment buttons of Spreadsheet like GUI (Handsontable)
+
+## 3.2.5
+
+* Improvement: Expandable Spreadsheet like GUI (Handsontable)
+* Improvement: Move/Resize rows/columns of Spreadsheet like GUI (Handsontable)
+* Improvement: Prevent XSS of New Page modal
+* Fix: Recent Created tab of user home shows wrong page list
+    * Introduced by 3.2.4
 * Support: Upgrade libs
+    * @handsontable/react
+    * handsontable
+    * metismenu
+    * sinon
+
+## 3.2.4
+
+* Feature: Edit table with Spreadsheet like GUI (Handsontable)
+* Feature: Paging recent created in users home
+* Improvement: Specify certificate for SAML Authentication
+* Fix: SAML Authentication didn't work
+    * Introduced by 3.2.2
+* Fix: Failed to create new page with title which includes RegEx special characters
+* Fix: Preventing XSS Settings are not applied in default
+    * Introduced by 3.1.12
+* Support: Mongoose migration mechanism
+* Support: Upgrade libs
+    * googleapis
+    * mocha
+    * mongoose
+    * mongoose-paginate
+    * mongoose-unique-validator
+    * multer
+
+## 3.2.3
+
+* Feature: Kibela like layout
+* Improvement: Custom newpage separator for presentation view
+* Support: Shrink image size for themes which recently added
+
+## 3.2.2
+
+* Feature: SAML Authentication (SSO)
+* Improvement: Add 'wood' theme
+* Improvement: Add 'halloween' theme
+* Improvement: Add 'island' theme
+* Fix: Sending email function doesn't work
+* Support Upgrade libs
+    * style-loader
+
+## 3.2.1
+
+* Feature: Import data from esa.io
+* Feature: Import data from Qiita:Team
+* Feature: Add the endpoint for health check
+* Improvement: Adjust styles when printing
+* Fix: Renaming page doesn't work if the page was saved with shortcut
+* Support: Refactor directory structure
+* Support Upgrade libs
+    * file-loader
+    * googleapis
+    * postcss-loader
+    * sass-loader
+    * style-loader
+
+## 3.2.0
+
+* Feature: HackMD integration so that user will be able to simultaneously edit with multiple people
+* Feature: Login with Twitter Account (OAuth)
+* Fix: The Initial scroll position is wrong when reloading the page
+
+## 3.1.14
+
+* Improvement: Show help for header search box
+* Improvement: Add Markdown Cheatsheet to Editor component
+* Fix: Couldn't delete page completely from search result page
+* Fix: Tabs of trash page are broken
+
+## 3.1.13
+
+* Feature: Global Notification
+* Feature: Send Global Notification with E-mail
+* Improvement: Add attribute mappings for email to LDAP settings
+* Support: Upgrade libs
+    * autoprefixer
+    * css-loader
+    * method-override
+    * optimize-css-assets-webpack-plugin
     * react
+    * react-bootstrap-typeahead
     * react-dom
 
-## 3.1.13-RC
-
-* 
 
 ## 3.1.12
 
@@ -38,8 +123,8 @@ CHANGES
 
 ## 3.1.9
 
-* Feature: Login with Google Account
-* Feature: Login with GitHub Account
+* Feature: Login with Google Account (OAuth)
+* Feature: Login with GitHub Account (OAuth)
 * Feature: Attach files in Comment
 * Improvement: Write comment with CodeMirror Editor
 * Improvement: Post comment with `Ctrl-Enter`
